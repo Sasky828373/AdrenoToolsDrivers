@@ -10,54 +10,84 @@ on:
 
 permissions:
   contents: write
-  
+
 jobs:
   start_building_turnip:
     runs-on: ubuntu-24.04
+
     env:
       BUILD_VERSION: ${{ inputs.version }}
+
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Prepare environment
-      run: |
-        sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-        sudo apt update
-        sudo apt install build-essential flex bison glslang-tools
-        sudo apt install meson-1.5 
+      - name: Prepare environment
+        run: |
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' \
+            /etc/apt/sources.list.d/ubuntu.sources
 
-    - name: Execute build script
-      run: bash ./turnip_builder.sh
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            flex \
+            bison \
+            glslang-tools
 
-    - name: Release "turnip"
-      uses: softprops/action-gh-release@v1
-      with:
-        body: |
-          Mainline Turnip Vulkan V${{ inputs.version }}
-          Built from: https://github.com/whitebelyash/mesa-unified (turnip/gen8 branch). Took a while.  
-          
-          I didn't test this this much. Contact me on MojoLauncher.en (#offtopic-non-help, requires Community role) or EmuCore discord if there are any issues.
+          sudo apt install -y meson-1.5
 
-          
-          >[!WARNING]
-          > Please don't report issues to Mesa, PLEASE
-                    
-          Supported GPUs:
-          * Adreno 8XX Family: 840, 830, 829, 825, 810
-          * Adreno 7XX Family: any GPU supported by the upstream Turnip + 710/720/722 (unstable, sysmem only). Thanks, https://github.com/Vauzi-17/710.  
-          (Upstream has more fixes, so check it too)
-          * Adreno 6XX Family: any GPU supported by the upstream Turnip
-          
-          
-          Notes:
-          * Disable DXVK_HUD if you see weird black artifacts
-          * Apparently there are swizzling glitches in Eden & maybe other emulators, try increasing render scale(?)
-          * Some games may require AMD/NVIDIA GPU to run and refuse to start on Qualcomm or block some features. I've included a patch to spoof as Steam Deck - use `TU_DEBUG=deck_emu`
-          * GMEM rendering produces glitchy picture on A830 (write page faults), disable it with `TU_DEBUG=sysmem`. It's pretty much useless for PC emulation anyway.
+      - name: Execute build script
+        run: bash ./turnip_builder.sh
 
-        tag_name: tu_v${{ inputs.version }}
-        name: Mainline Turnip v${{ inputs.version }}
-        files: |
-           /tmp/mainline-turnip-V${{ inputs.version }}.zip
-           /tmp/mainline-turnip-sync-V${{ inputs.version }}.zip
+      # Wichtig:
+      # Beide fertigen Treiber-ZIPs unabhängig vom GitHub Release sichern.
+      # Damit bleibt insbesondere unser gepatchter turnip-sync Build
+      # verfügbar, selbst wenn action-gh-release einen HTTP-500 bekommt.
+      - name: Upload Turnip build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: turnip-${{ inputs.version }}
+          path: |
+            /tmp/mainline-turnip-V${{ inputs.version }}.zip
+            /tmp/mainline-turnip-sync-V${{ inputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Release "turnip"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tu_v${{ inputs.version }}
+          name: Mainline Turnip v${{ inputs.version }}
+
+          body: |
+            Mainline Turnip Vulkan V${{ inputs.version }}
+
+            Built from:
+            https://github.com/whitebelyash/mesa-unified
+            Branch: turnip/gen8
+
+            > [!WARNING]
+            > Please don't report issues to Mesa.
+
+            Supported GPUs:
+
+            * Adreno 8XX Family: 840, 830, 829, 825, 810
+            * Adreno 7XX Family: any GPU supported by upstream Turnip
+              plus 710/720/722 (unstable, sysmem only)
+            * Adreno 6XX Family: any GPU supported by upstream Turnip
+
+            Notes:
+
+            * Disable DXVK_HUD if you see weird black artifacts.
+            * Some games may require AMD/NVIDIA identification.
+              TU_DEBUG=deck_emu can be used where appropriate.
+            * GMEM may cause problems on some A830 configurations.
+              TU_DEBUG=sysmem can be used as a fallback.
+
+            V46 A840 build:
+            The turnip-sync package contains the patches applied by
+            turnip_builder.sh, including the V46 A840 GTA V optimization.
+
+          files: |
+            /tmp/mainline-turnip-V${{ inputs.version }}.zip
+            /tmp/mainline-turnip-sync-V${{ inputs.version }}.zip
