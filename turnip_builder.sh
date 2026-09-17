@@ -79,8 +79,8 @@ build_lib_for_android(){
 	git checkout --force origin/$1
 	if [[ "$3" == "apply" ]]; then
 		echo "Applying patches"
-		for patch in $base_workdir/patches/*; do
-			apply_patch $patch
+		for patch in "$base_workdir"/patches/*; do
+			apply_patch "$patch"
 		done
 	fi
 	echo "Pushing TU_VERSION..."
