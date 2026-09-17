@@ -1,0 +1,21 @@
+--- a/src/freedreno/vulkan/tu_autotune.cc
++++ b/src/freedreno/vulkan/tu_autotune.cc
+@@ -303,7 +303,17 @@
+ 
+       /* Parse the flags from the environment variable. */
+       const char *flags_env_str = os_get_option("TU_AUTOTUNE_FLAGS");
+-      uint32_t mod_flags = 0;
++      /* A8xx / GTA-class deferred renderers frequently use small render passes
++       * (notably G-buffer and post-processing passes).  Upstream deliberately
++       * skips autotuning render passes with fewer than five draws and falls
++       * back to SYSMEM, even noting deferred G-buffer passes as an edge case.
++       * On A8xx, let the existing bandwidth autotuner make that decision too.
++       * An explicit TU_AUTOTUNE_FLAGS value still fully controls the flags.
++       */
++      uint32_t mod_flags =
++         (!flags_env_str && device->physical_device->info->chip >= A8XX)
++            ? (uint32_t) mod_flag::TUNE_SMALL
++            : 0;
+       if (flags_env_str) {
+          static const struct debug_control tu_at_flags_control[] = {
+             { "big_gmem", (uint32_t) mod_flag::BIG_GMEM },
