@@ -1,6 +1,8 @@
+diff --git a/src/freedreno/vulkan/tu_autotune.cc b/src/freedreno/vulkan/tu_autotune.cc
+index 8274e01..2e58105 100644
 --- a/src/freedreno/vulkan/tu_autotune.cc
 +++ b/src/freedreno/vulkan/tu_autotune.cc
-@@ -303,7 +303,17 @@
+@@ -303,7 +303,17 @@ tu_autotune::get_env_config()
  
        /* Parse the flags from the environment variable. */
        const char *flags_env_str = os_get_option("TU_AUTOTUNE_FLAGS");
