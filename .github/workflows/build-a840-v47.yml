@@ -1,0 +1,155 @@
+name: Build A840 V47 Turnip
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v47-a840-source
+    paths:
+      - 'src/freedreno/**'
+      - '.github/workflows/build-a840-v47.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout V47 source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang llvm ccache meson ninja-build pkg-config \
+            patchelf unzip curl flex bison zip glslang-tools \
+            python3-pip python3-mako
+          meson --version
+          ninja --version
+          clang --version
+
+      - name: Download Android NDK r29
+        run: |
+          curl -L --retry 3 \
+            https://dl.google.com/android/repository/android-ndk-r29-linux.zip \
+            -o "$RUNNER_TEMP/android-ndk-r29-linux.zip"
+          unzip -q "$RUNNER_TEMP/android-ndk-r29-linux.zip" -d "$RUNNER_TEMP"
+          echo "NDK=$RUNNER_TEMP/android-ndk-r29" >> "$GITHUB_ENV"
+
+      - name: Configure Android aarch64 cross build
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          NDK_BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
+          mkdir -p "$RUNNER_TEMP/ndk-cc"
+          ln -sf "$NDK_BIN/clang" "$RUNNER_TEMP/ndk-cc/cc"
+          ln -sf "$NDK_BIN/clang++" "$RUNNER_TEMP/ndk-cc/c++"
+
+          cat > android-aarch64.txt <<EOF
+          [binaries]
+          ar = '$NDK_BIN/llvm-ar'
+          c = ['ccache', '$NDK_BIN/aarch64-linux-android34-clang']
+          cpp = ['ccache', '$NDK_BIN/aarch64-linux-android34-clang++', '-fno-exceptions', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables', '--start-no-unused-arguments', '-static-libstdc++', '--end-no-unused-arguments']
+          c_ld = '$NDK_BIN/ld.lld'
+          cpp_ld = '$NDK_BIN/ld.lld'
+          strip = '$NDK_BIN/llvm-strip'
+          pkg-config = ['env', 'PKG_CONFIG_LIBDIR=$NDK_BIN/pkg-config', '/usr/bin/pkg-config']
+
+          [host_machine]
+          system = 'android'
+          cpu_family = 'aarch64'
+          cpu = 'armv8'
+          endian = 'little'
+          EOF
+
+          cat > native.txt <<EOF
+          [build_machine]
+          c = ['ccache', 'clang']
+          cpp = ['ccache', 'clang++']
+          ar = 'llvm-ar'
+          strip = 'llvm-strip'
+          c_ld = 'ld.lld'
+          cpp_ld = 'ld.lld'
+          system = 'linux'
+          cpu_family = 'x86_64'
+          cpu = 'x86_64'
+          endian = 'little'
+          EOF
+
+          export PATH="$RUNNER_TEMP/ndk-cc:$NDK_BIN:$PATH"
+          export CC=clang
+          export CXX=clang++
+          export AR=llvm-ar
+          export RANLIB=llvm-ranlib
+          export STRIP=llvm-strip
+          export OBJDUMP=llvm-objdump
+          export OBJCOPY=llvm-objcopy
+          export LDFLAGS="-fuse-ld=lld"
+
+          rm -rf build-android-aarch64 "$RUNNER_TEMP/turnip-v47"
+
+          meson setup build-android-aarch64 \
+            --cross-file android-aarch64.txt \
+            --native-file native.txt \
+            --prefix "$RUNNER_TEMP/turnip-v47" \
+            -Dbuildtype=release \
+            -Dstrip=true \
+            -Dplatforms=android \
+            -Dvideo-codecs= \
+            -Dplatform-sdk-version=36 \
+            -Dandroid-stub=true \
+            -Dgallium-drivers= \
+            -Dvulkan-drivers=freedreno \
+            -Dvulkan-beta=true \
+            -Dfreedreno-kmds=kgsl \
+            -Degl=disabled \
+            -Dandroid-libbacktrace=disabled
+
+      - name: Build and install V47 Turnip
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ninja -C build-android-aarch64
+          DEST="$RUNNER_TEMP/turnip-v47"
+          ninja -C build-android-aarch64 install
+
+          DRIVER="$DEST/lib/libvulkan_freedreno.so"
+          test -s "$DRIVER"
+
+          mkdir -p artifact
+          cp "$DRIVER" artifact/libvulkan_freedreno.so
+
+          cat > artifact/meta.json <<'EOF'
+          {
+            "schemaVersion": 1,
+            "name": "A840 V47 Adaptive Performance",
+            "description": "Turnip Gen8 A8xx V47: TUNE_SMALL + PROFILED default with faster measured autotune convergence",
+            "author": "Sasky828373 / whitebelyash",
+            "packageVersion": "47",
+            "vendor": "Mesa",
+            "minApi": 28,
+            "libraryName": "libvulkan_freedreno.so"
+          }
+          EOF
+
+          file artifact/libvulkan_freedreno.so
+          sha256sum artifact/libvulkan_freedreno.so | tee artifact/SHA256SUMS.txt
+          (cd artifact && zip -9 ../A840_V47_Turnip.zip libvulkan_freedreno.so meta.json SHA256SUMS.txt)
+
+      - name: Upload V47 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: A840-V47-Turnip
+          path: |
+            artifact/libvulkan_freedreno.so
+            artifact/meta.json
+            artifact/SHA256SUMS.txt
+            A840_V47_Turnip.zip
+          if-no-files-found: error
+          retention-days: 30
