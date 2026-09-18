@@ -25,9 +25,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            clang llvm ccache meson ninja-build pkg-config \
+            clang llvm ccache ninja-build pkg-config \
             patchelf unzip curl flex bison zip glslang-tools \
             python3-pip python3-mako
+          python3 -m pip install --user --upgrade 'meson>=1.4'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
           meson --version
           ninja --version
           clang --version
