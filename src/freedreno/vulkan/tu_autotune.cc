@@ -1159,10 +1159,8 @@ struct tu_autotune::rp_history {
                 * favour one rendering mode. Extreme probabilities still move
                 * slowly in order to avoid locking on short-lived behaviour.
                 */
-               /* V49/A840: recurring GTA-class passes benefit from reaching the measured
-                * winner sooner. Keep the slow edge exploration so this never becomes
-                * a forced GMEM/SYSMEM policy. */
-               constexpr uint32_t FAST_STEP_DELTA = 10, FAST_MIN_PROBABILITY = 5, FAST_MAX_PROBABILITY = 95;
+               /* V50 final: use the V47-tested adaptive convergence. */
+               constexpr uint32_t FAST_STEP_DELTA = 8, FAST_MIN_PROBABILITY = 5, FAST_MAX_PROBABILITY = 95;
                constexpr uint32_t SLOW_STEP_DELTA = 1, SLOW_MIN_PROBABILITY = 1, SLOW_MAX_PROBABILITY = 99;
 
                uint64_t avg_sysmem = sysmem_ema.get();
@@ -1192,10 +1190,10 @@ struct tu_autotune::rp_history {
                 * based on measured GPU duration rather than a forced
                 * GMEM/SYSMEM preference.
                 */
-               constexpr uint32_t MIN_LOCK_DURATION_COUNT = 8;
-               constexpr uint64_t MIN_LOCK_THRESHOLD = GPU_TICKS_PER_US * 400; /* 0.4ms */
-               constexpr uint32_t LOCK_PERCENT_DIFF = 18;
-               constexpr uint64_t LOCK_TIME_WINDOW_NS = 4'000'000'000; /* 4s */
+               constexpr uint32_t MIN_LOCK_DURATION_COUNT = 10;
+               constexpr uint64_t MIN_LOCK_THRESHOLD = GPU_TICKS_PER_US * 500; /* 0.5ms */
+               constexpr uint32_t LOCK_PERCENT_DIFF = 20;
+               constexpr uint64_t LOCK_TIME_WINDOW_NS = 5'000'000'000; /* 5s */
 
                uint64_t now = os_time_get_nano();
                bool current_sysmem_winning = avg_sysmem < avg_gmem;
