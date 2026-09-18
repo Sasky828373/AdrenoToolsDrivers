@@ -385,6 +385,17 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
 
    if (compiler->gen >= 6) {
       compiler->reg_size_vec4 = dev_info->props.reg_size_vec4;
+
+      /*
+       * V48/A840: use the existing A8xx occupancy profile for register
+       * budgeting.  This does not change shader precision, texture quality,
+       * render resolution, or Vulkan synchronization.  It only makes the
+       * compiler's occupancy model account for the effective A8xx register
+       * budget, reducing the chance that register-heavy shaders suppress
+       * wave occupancy.
+       */
+      if (compiler->gen >= 8)
+         compiler->reg_size_vec4 = ir3_effective_reg_size(compiler);
    } else if (compiler->gen >= 4) {
       /* On a4xx-a5xx, using r24.x and above requires using the smallest
        * threadsize.
