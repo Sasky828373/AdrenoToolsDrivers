@@ -1,0 +1,16 @@
+name: Build A840 V48 GPU
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-v48:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start V48 branch build
+        run: |
+          echo "Select branch v48-a840-gpu before pressing Run workflow."
+          echo "This dispatcher exists on main so GitHub exposes the manual workflow."
