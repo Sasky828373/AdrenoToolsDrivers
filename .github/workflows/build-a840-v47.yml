@@ -1,13 +1,13 @@
-name: Build A840 V47 Turnip
+name: Build A840 V48 GPU
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - v47-a840-source
+      - v48-a840-gpu
     paths:
       - 'src/freedreno/**'
-      - '.github/workflows/build-a840-v47.yml'
+      - '.github/workflows/build-a840-v48.yml'
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout V47 source
+      - name: Checkout V48 source
         uses: actions/checkout@v4
 
       - name: Install build dependencies
@@ -95,12 +95,12 @@ jobs:
           export OBJCOPY=llvm-objcopy
           export LDFLAGS="-fuse-ld=lld"
 
-          rm -rf build-android-aarch64 "$RUNNER_TEMP/turnip-v47"
+          rm -rf build-android-aarch64 "$RUNNER_TEMP/turnip-v48"
 
           meson setup build-android-aarch64 \
             --cross-file android-aarch64.txt \
             --native-file native.txt \
-            --prefix "$RUNNER_TEMP/turnip-v47" \
+            --prefix "$RUNNER_TEMP/turnip-v48" \
             -Dbuildtype=release \
             -Dstrip=true \
             -Dplatforms=android \
@@ -114,12 +114,12 @@ jobs:
             -Degl=disabled \
             -Dandroid-libbacktrace=disabled
 
-      - name: Build and install V47 Turnip
+      - name: Build and install V48 Turnip
         shell: bash
         run: |
           set -euxo pipefail
           ninja -C build-android-aarch64
-          DEST="$RUNNER_TEMP/turnip-v47"
+          DEST="$RUNNER_TEMP/turnip-v48"
           ninja -C build-android-aarch64 install
 
           DRIVER="$DEST/lib/libvulkan_freedreno.so"
@@ -131,8 +131,8 @@ jobs:
           cat > artifact/meta.json <<'EOF'
           {
             "schemaVersion": 1,
-            "name": "A840 V47 Adaptive Performance",
-            "description": "Turnip Gen8 A8xx V47: TUNE_SMALL + PROFILED default with faster measured autotune convergence",
+            "name": "A840 V48 Adaptive Performance",
+            "description": "Turnip Gen8 A8xx V48: TUNE_SMALL + PROFILED default with faster measured autotune convergence",
             "author": "Sasky828373 / whitebelyash",
             "packageVersion": "47",
             "vendor": "Mesa",
@@ -143,16 +143,16 @@ jobs:
 
           file artifact/libvulkan_freedreno.so
           sha256sum artifact/libvulkan_freedreno.so | tee artifact/SHA256SUMS.txt
-          (cd artifact && zip -9 ../A840_V47_Turnip.zip libvulkan_freedreno.so meta.json SHA256SUMS.txt)
+          (cd artifact && zip -9 ../A840_V48_Turnip.zip libvulkan_freedreno.so meta.json SHA256SUMS.txt)
 
-      - name: Upload V47 artifacts
+      - name: Upload V48 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: A840-V47-Turnip
+          name: A840-V48-Turnip
           path: |
             artifact/libvulkan_freedreno.so
             artifact/meta.json
             artifact/SHA256SUMS.txt
-            A840_V47_Turnip.zip
+            A840_V48_Turnip.zip
           if-no-files-found: error
           retention-days: 30
