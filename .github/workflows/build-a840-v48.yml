@@ -1,10 +1,10 @@
-name: Build A840 V48 GPU
+name: Build A840 V49 GPU
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - v48-a840-gpu
+      - v49-a840-balanced
 
 permissions:
   contents: read
@@ -15,10 +15,10 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout V48 source
+      - name: Checkout V49 source
         uses: actions/checkout@v4
         with:
-          ref: v48-a840-gpu
+          ref: v49-a840-balanced
 
       - name: Install build dependencies
         run: |
@@ -113,7 +113,7 @@ jobs:
             -Degl=disabled \
             -Dandroid-libbacktrace=disabled
 
-      - name: Build and install V48 Turnip
+      - name: Build and install V49 Turnip
         shell: bash
         run: |
           set -euxo pipefail
@@ -130,8 +130,8 @@ jobs:
           cat > artifact/meta.json <<'EOF'
           {
             "schemaVersion": 1,
-            "name": "A840 V48 Adaptive Performance",
-            "description": "Turnip Gen8 A8xx V48: TUNE_SMALL + PROFILED default with faster measured autotune convergence",
+            "name": "A840 V49 Adaptive Performance",
+            "description": "Turnip Gen8 A8xx V49: TUNE_SMALL + PROFILED default with faster measured autotune convergence",
             "author": "Sasky828373 / whitebelyash",
             "packageVersion": "47",
             "vendor": "Mesa",
@@ -142,16 +142,16 @@ jobs:
 
           file artifact/libvulkan_freedreno.so
           sha256sum artifact/libvulkan_freedreno.so | tee artifact/SHA256SUMS.txt
-          (cd artifact && zip -9 ../A840_V48_Turnip.zip libvulkan_freedreno.so meta.json SHA256SUMS.txt)
+          (cd artifact && zip -9 ../A840_V49_Turnip.zip libvulkan_freedreno.so meta.json SHA256SUMS.txt)
 
-      - name: Upload V48 artifacts
+      - name: Upload V49 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: A840-V48-Turnip
+          name: A840-V49-Turnip
           path: |
             artifact/libvulkan_freedreno.so
             artifact/meta.json
             artifact/SHA256SUMS.txt
-            A840_V48_Turnip.zip
+            A840_V49_Turnip.zip
           if-no-files-found: error
           retention-days: 30
