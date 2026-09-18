@@ -72,7 +72,14 @@ ir3_get_gpu_profile(uint32_t chip_id)
     case 0x43050A31: /* Adreno 830 variant */
         return (struct ir3_gpu_profile){75, 16, 12, true};
     case 0x43050A32: /* Adreno 840 */
-        return (struct ir3_gpu_profile){70, 20, 16, true};
+        /*
+         * V49: keep the physical register budget intact. V48's 70% effective
+         * budget can make register-heavy shaders hit RA pressure/spilling
+         * earlier without evidence that the A840 register file is smaller.
+         * Preserve the A840 inflight/threadsize profile, but don't discount
+         * the hardware register capacity.
+         */
+        return (struct ir3_gpu_profile){100, 20, 16, true};
     default:
         return (struct ir3_gpu_profile){85, 8, 8, false};
     }
